@@ -2,44 +2,39 @@ name: Auto Cleanup Old Images
 
 on:
   schedule:
-    # 每 2 小时执行一次（UTC 0点、2点、4点...）
     - cron: '0 */2 * * *'
-  workflow_dispatch:
+  workflow_dispatch: # 只允许定时或手动触发，绝不在上传时触发
 
 jobs:
   cleanup:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Delete images older than 2 hours
         run: |
-          # 获取 2 小时前的时间戳（秒）
           CUTOFF=$(date -d '2 hours ago' +%s)
-          
           if [ -d "images" ]; then
             for file in images/*; do
               if [ -f "$file" ]; then
-                # 从文件名提取毫秒级时间戳并转成秒
                 TIMESTAMP_MS=$(basename "$file" | cut -d'-' -f1)
-                TIMESTAMP_SEC=$((TIMESTAMP_MS / 1000))
-                
-                # 如果文件上传时间早于 2 小时前，则删除
-                if [ "$TIMESTAMP_SEC" -lt "$CUTOFF" ]; then
-                  git rm "$file"
-                  echo "Deleted: $file"
+                # 安全检查：确保是纯数字才处理
+                if [[ "$TIMESTAMP_MS" =~ ^[0-9]+$ ]]; then
+                  TIMESTAMP_SEC=$((TIMESTAMP_MS / 1000))
+                  if [ "$TIMESTAMP_SEC" -lt "$CUTOFF" ]; then
+                    rm "$file"
+                    echo "Deleted: $file"
+                  fi
                 fi
               fi
             done
           fi
 
-          # 如果有文件被删除，自动提交并推送
-          if git diff --cached --quiet; then
-            echo "没有需要清理的文件"
-          else
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git commit -m "Auto cleanup old images (older than 2h)"
-            git push
-          fi
+      - name: Commit and push changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Auto cleanup old images"
+          file_pattern: 'images/*'
