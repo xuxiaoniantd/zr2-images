@@ -1,0 +1,46 @@
+ name: Auto Cleanup Old Images
+
+on:
+  schedule:
+    # 每 12 小时执行一次（UTC 0:00 和 12:00，即北京时间 8:00 和 20:00）
+    - cron: '0 */12 * * *'
+  workflow_dispatch: # 允许手动触发，方便测试
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Delete images older than 24 hours
+        run: |
+          # 计算 24 小时前的时间戳（秒）
+          CUTOFF=$(date -d '24 hours ago' +%s)
+          
+          if [ -d "images" ]; then
+            for file in images/*; do
+              if [ -f "$file" ]; then
+                # 提取文件名中的毫秒级时间戳（如 1712345678901-abc.jpg）
+                TIMESTAMP_MS=$(basename "$file" | cut -d'-' -f1)
+                # 转换为秒
+                TIMESTAMP_SEC=$((TIMESTAMP_MS / 1000))
+                
+                # 如果文件超过 24 小时，执行删除
+                if [ "$TIMESTAMP_SEC" -lt "$CUTOFF" ]; then
+                  git rm "$file"
+                  echo "Deleted: $file"
+                fi
+              fi
+            done
+          fi
+
+          # 如果有文件被删除，自动提交并推送
+          if git diff --cached --quiet; then
+            echo "没有需要清理的文件"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -m "Auto cleanup old images (older than 24h)"
+            git push
+          fi
