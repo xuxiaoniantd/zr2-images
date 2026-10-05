@@ -10,9 +10,9 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Delete old files
-        run: |
-          find images/ -type f -mmin +120 -delete || true
-      - uses: stefanzweifel/git-auto-commit-action@v5
+      - name: Clear images folder
+        run: rm -rf images/* || true
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "Auto clean old images"
+          commit_message: "Auto clean images folder"
