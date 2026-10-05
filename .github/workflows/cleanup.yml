@@ -1,27 +1,18 @@
 name: Auto Cleanup Old Images
-
 on:
   schedule:
-    - cron: '0 */2 * * *' # 每两小时执行一次
-  workflow_dispatch:      # 允许手动触发
-
+    - cron: '0 */2 * * *'
+  workflow_dispatch:
 jobs:
   cleanup:
     runs-on: ubuntu-latest
     permissions:
-      contents: write     # 必须要有，否则没权限删文件
+      contents: write
     steps:
-一扫      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Delete files older than 2 hours
+      - uses: actions/checkout@v4
+      - name: Delete old files
         run: |
-          # 直接按文件的实际修改时间：删除超过 120 分钟（2小时）的文件
           find images/ -type f -mmin +120 -delete || true
-          echo "清理任务执行完毕"
-
-      - name: Commit and push changes
-        uses: stefanzweifel/git-auto-commit-action@v5
+      - uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "Auto cleanup old images"
-          file_pattern: 'images/*'
+          commit_message: "Auto clean old images"
