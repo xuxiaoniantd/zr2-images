@@ -2,36 +2,23 @@ name: Auto Cleanup Old Images
 
 on:
   schedule:
-    - cron: '0 */2 * * *'
-  workflow_dispatch: # 只允许定时或手动触发，绝不在上传时触发
+    - cron: '0 */2 * * *' # 每两小时执行一次
+  workflow_dispatch:      # 允许手动触发
 
 jobs:
   cleanup:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write     # 必须要有，否则没权限删文件
     steps:
-      - name: Checkout
+一扫      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Delete images older than 2 hours
+      - name: Delete files older than 2 hours
         run: |
-          CUTOFF=$(date -d '2 hours ago' +%s)
-          if [ -d "images" ]; then
-            for file in images/*; do
-              if [ -f "$file" ]; then
-                TIMESTAMP_MS=$(basename "$file" | cut -d'-' -f1)
-                # 安全检查：确保是纯数字才处理
-                if [[ "$TIMESTAMP_MS" =~ ^[0-9]+$ ]]; then
-                  TIMESTAMP_SEC=$((TIMESTAMP_MS / 1000))
-                  if [ "$TIMESTAMP_SEC" -lt "$CUTOFF" ]; then
-                    rm "$file"
-                    echo "Deleted: $file"
-                  fi
-                fi
-              fi
-            done
-          fi
+          # 直接按文件的实际修改时间：删除超过 120 分钟（2小时）的文件
+          find images/ -type f -mmin +120 -delete || true
+          echo "清理任务执行完毕"
 
       - name: Commit and push changes
         uses: stefanzweifel/git-auto-commit-action@v5
